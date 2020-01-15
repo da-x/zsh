@@ -1595,6 +1595,9 @@ hend(Eprog prog)
 	    he = prepnexthistent();
 
 	he->node.nam = ztrdup(chline);
+	if (isset(HISTSAVECWD)) {
+	    he->cwd = ztrdup(zgetcwd());
+	}
 	he->stim = time(NULL);
 	he->ftim = 0L;
 	he->node.flags = newflags;
@@ -2666,6 +2669,8 @@ readhistfile(char *fn, int err, int readflags)
 	    newflags |= HIST_MAKEUNIQUE;
 	while (fpos = ftell(in), (l = readhistline(0, &buf, &bufsiz, in))) {
 	    char *pt;
+	    char *directory = NULL;
+	    char *directory_end = NULL;
 	    int remeta = 0;
 
 	    if (l < 0) {
@@ -2701,8 +2706,12 @@ readhistfile(char *fn, int err, int readflags)
 
 	    if (*pt == ':') {
 		pt++;
-		stim = zstrtol(pt, NULL, 0);
+		stim = zstrtol(pt, &pt, 0);
+		if (*pt == ' ' && pt[1] == '/') {
+		    directory = &pt[1];
+		}
 		for (; *pt != ':' && *pt; pt++);
+		directory_end = pt;
 		if (*pt) {
 		    pt++;
 		    ftim = zstrtol(pt, NULL, 0);
@@ -2745,6 +2754,11 @@ readhistfile(char *fn, int err, int readflags)
 	    he = prepnexthistent();
 	    he->node.nam = ztrdup(pt);
 	    he->node.flags = newflags;
+	    if (directory && directory_end) {
+		*directory_end = '\0';
+		he->cwd = ztrdup(directory);
+		*directory_end = ':';
+	    }
 	    if ((he->stim = stim) == 0)
 		he->stim = he->ftim = tim;
 	    else if (ftim < stim)
@@ -2983,8 +2997,14 @@ savehistfile(char *fn, int err, int writeflags)
 	    }
 	    t = start = he->node.nam;
 	    if (extended_history) {
-		ret = fprintf(out, ": %ld:%ld;", (long)he->stim,
-			      he->ftim? (long)(he->ftim - he->stim) : 0L);
+		if (isset(HISTSAVECWD)) {
+		    ret = fprintf(out, ": %ld %s:%ld;", (long)he->stim,
+				  he->cwd ? he->cwd : zgetcwd(),
+				  he->ftim? (long)(he->ftim - he->stim) : 0L);
+		} else {
+		    ret = fprintf(out, ": %ld:%ld;", (long)he->stim,
+				  he->ftim? (long)(he->ftim - he->stim) : 0L);
+		}
 	    } else if (*t == ':')
 		ret = fputc('\\', out);
 

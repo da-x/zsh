@@ -2199,6 +2199,7 @@ struct histent {
 				 * i.e the same format as the original
 				 * entry
 				 */
+    char *cwd;			/* direcory where the command ran   */
     time_t stim;		/* command started time (datestamp) */
     time_t ftim;		/* command finished time            */
     short *words;		/* Position of words in history     */
@@ -2399,6 +2400,7 @@ enum {
     HISTIGNOREALLDUPS,
     HISTIGNOREDUPS,
     HISTIGNORESPACE,
+    HISTSAVECWD,
     HISTLEXWORDS,
     HISTNOFUNCTIONS,
     HISTNOSTORE,

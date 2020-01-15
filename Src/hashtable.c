@@ -1453,6 +1453,9 @@ freehistdata(Histent he, int unlink)
     if (!(he->node.flags & (HIST_DUP | HIST_TMPSTORE)))
 	removehashnode(histtab, he->node.nam);
 
+    if (he->cwd)
+	zsfree(he->cwd);
+
     zsfree(he->node.nam);
     if (he->nwords)
 	zfree(he->words, he->nwords*2*sizeof(short));

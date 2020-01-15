@@ -71,7 +71,7 @@ static struct builtin builtins[] =
      * But that's actually not useful, so it's more consistent to
      * cause an error.
      */
-    BUILTIN("fc", 0, bin_fc, 0, -1, BIN_FC, "aAdDe:EfiIlLmnpPrRt:W", NULL),
+    BUILTIN("fc", 0, bin_fc, 0, -1, BIN_FC, "acAdDe:EfiIlLmnpPrRt:W", NULL),
     BUILTIN("fg", 0, bin_fg, 0, -1, BIN_FG, NULL, NULL),
     BUILTIN("float", BINF_PLUSOPTS | BINF_MAGICEQUALS | BINF_PSPECIAL | BINF_ASSIGN, (HandlerFunc)bin_typeset, 0, -1, 0, "E:%F:%HL:%R:%Z:%ghlp:%rtux", "E"),
     BUILTIN("functions", BINF_PLUSOPTS, bin_functions, 0, -1, 0, "ckmMstTuUWx:z", NULL),
@@ -83,7 +83,7 @@ static struct builtin builtins[] =
     BUILTIN("hashinfo", 0, bin_hashinfo, 0, 0, 0, NULL, NULL),
 #endif
 
-    BUILTIN("history", 0, bin_fc, 0, -1, BIN_FC, "adDEfiLmnpPrt:", "l"),
+    BUILTIN("history", 0, bin_fc, 0, -1, BIN_FC, "acdDEfiLmnpPrt:", "l"),
     BUILTIN("integer", BINF_PLUSOPTS | BINF_MAGICEQUALS | BINF_PSPECIAL | BINF_ASSIGN, (HandlerFunc)bin_typeset, 0, -1, 0, "HL:%R:%Z:%ghi:%lp:%rtux", "i"),
     BUILTIN("jobs", 0, bin_fg, 0, -1, BIN_JOBS, "dlpZrs", NULL),
     BUILTIN("kill", BINF_HANDLES_OPTS, bin_kill, 0, -1, 0, NULL, NULL),
@@ -1755,6 +1755,7 @@ fclist(FILE *f, Options ops, zlong first, zlong last,
     int fclistdone = 0, xflags = 0;
     zlong tmp;
     char *s, *tdfmt, *timebuf;
+    const char *cwd = NULL;
     Histent ent;
 
     /* reverse range if required */
@@ -1810,7 +1811,26 @@ fclist(FILE *f, Options ops, zlong first, zlong last,
 	xflags |= HIST_READ;
     }
 
+    if (OPT_ISSET(ops,'c')) {
+	cwd = zgetcwd();
+    }
     for (;;) {
+	if (OPT_ISSET(ops,'c') && cwd) {
+	    if (!ent->cwd) {
+		/* the entry does not a have a current directory,
+		 * these are entries before the user has
+		 * activated the histsavecwd feature.
+		 */
+		goto next;
+	    }
+	    if (strcmp(ent->cwd, cwd)) {
+		/* filter out commands not belonging to the
+		 * current directory.
+		 */
+		goto next;
+	    }
+	}
+
 	if (ent->node.flags & xflags)
 	    s = NULL;
 	else
@@ -1856,6 +1876,8 @@ fclist(FILE *f, Options ops, zlong first, zlong last,
 		putc('\n', f);
 	    }
 	}
+
+next:
 	/* move on to the next history line, or quit the loop */
 	if (first < last) {
 	    if (!(ent = down_histent(ent)) || ent->histnum > last)
